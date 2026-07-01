@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bihpr"
+version = "0.1.0"
+description = "Large-scale bidirectional homogeneity pursuit for high-dimensional regression."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "BiHPR authors"},
+]
+keywords = [
+    "high-dimensional regression",
+    "biclustering",
+    "homogeneity pursuit",
+    "ADMM",
+    "MCP",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "joblib",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "scipy",
+]
+
+[project.optional-dependencies]
+examples = [
+    "jupyter",
+    "matplotlib",
+]
+dev = [
+    "build",
+    "jupyter",
+    "matplotlib",
+    "pytest",
+]
+
+[project.scripts]
+bihpr-gaussian-grid = "run_gaussian_noise05_grid:main"
+
+[tool.setuptools]
+py-modules = ["run_gaussian_noise05_grid"]
+
+[tool.setuptools.packages.find]
+include = ["BiHPR*"]
