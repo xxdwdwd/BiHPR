@@ -18,8 +18,8 @@ The package provides:
 Clone the repository and install it in editable mode:
 
 ```bash
-git clone <your-github-repository-url>
-cd Regression_biclustering_github
+git clone https://github.com/xxdwdwd/BiHPR.git
+cd BiHPR
 pip install -e .
 ```
 
@@ -223,36 +223,3 @@ The notebook demonstrates:
 5. computing recovery metrics;
 6. inspecting the tuning table.
 
-## Repository Layout
-
-```text
-BiHPR/
-    __init__.py              # public package API
-    BiHPR_MCP_large.py       # MCP-ADMM solver
-    BiHPR_single_test.py     # BIC path and paper-style simulation helpers
-    Cluster.py               # graph and label utilities
-    Weight.py                # pairwise kernel-weight utilities
-examples/
-    BiHPR_usage_demo.ipynb   # tutorial notebook
-run_gaussian_noise05_grid.py # command-line Gaussian grid experiment
-pyproject.toml               # package metadata
-README.md                    # this tutorial
-```
-
-## GitHub Upload Checklist
-
-Before pushing to GitHub:
-
-```bash
-python -m compileall -q .
-python -m pip install -e . --no-deps --dry-run
-python run_gaussian_noise05_grid.py --help
-```
-
-Then commit the source files:
-
-```bash
-git add BiHPR examples README.md pyproject.toml .gitignore run_gaussian_noise05_grid.py
-git commit -m "Package BiHPR solver with docs and examples"
-git push
-```
