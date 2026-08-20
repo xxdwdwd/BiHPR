@@ -223,3 +223,26 @@ The notebook demonstrates:
 5. computing recovery metrics;
 6. inspecting the tuning table.
 
+## TCGA Lung Real-Data Analysis
+
+The repository includes the analysis notebook and the two input files required
+to reproduce the TCGA lung analysis:
+
+- `examples/TCGA_lung_real_data.ipynb`;
+- `examples/data/tcga_lung/LUNG_data.csv` (RNA-seq measurements, clinical
+  outcome, and cancer-type labels);
+- `examples/data/tcga_lung/lung_coef.xlsx` (candidate-gene table).
+
+Install the real-data dependencies and start Jupyter from the repository root:
+
+```bash
+pip install -e ".[realdata]"
+jupyter notebook examples/TCGA_lung_real_data.ipynb
+```
+
+The notebook performs log normalization, variance-based feature selection,
+local fused-lasso initialization, BiHPR fitting, cluster-composition analysis,
+and coefficient heatmap generation. It writes new artifacts under
+`outputs/tcga_lung_real_data/`, which is excluded from version control. The
+default configuration is computationally demanding; reduce `P_DIM` and `niter`
+for a quick smoke test.
