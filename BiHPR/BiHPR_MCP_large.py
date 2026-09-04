@@ -755,14 +755,5 @@ def fit_bihpr_path(*args, **kwargs):
     return _fit_path(*args, **kwargs)
 
 
-def run_single_simulation(*args, **kwargs):
-    """Compatibility entry point; single-simulation code lives in BiHPR_single_test.py."""
-
-    from BiHPR.BiHPR_single_test import run_single_simulation as _run_once
-
-    return _run_once(*args, **kwargs)
-
-
 if __name__ == "__main__":
     print("This file only contains the BiHPR solver.")
-    print("Run one paper-style simulation with: python -m BiHPR.BiHPR_single_test")

@@ -1,248 +1,30 @@
 # BiHPR
 
-BiHPR is a Python implementation of **Bidirectional Homogeneity Pursuit in
-High-Dimensional Regression**. It estimates individualized regression
-coefficients while recovering sample subgroups, feature clusters, and sparse
-active features.
-
-The package provides:
-
-- a large-scale MCP-ADMM solver for one fixed penalty setting;
-- a warm-started two-dimensional BIC tuning path;
-- simulation utilities for the Gaussian paper-style design;
-- a command-line script for multi-dimensional Gaussian grid experiments;
-- a worked notebook in `examples/BiHPR_usage_demo.ipynb`.
+BiHPR implements bidirectional homogeneity pursuit for high-dimensional regression. It jointly estimates sample subgroups, covariate-effect groups, and inactive covariates.
 
 ## Installation
 
-Clone the repository and install it in editable mode:
+Clone the repository and install the dependencies needed for the notebook you plan to run.
 
-```bash
-git clone https://github.com/xxdwdwd/BiHPR.git
-cd BiHPR
-pip install -e .
-```
+## Complete tuning demo
 
-Install notebook dependencies when you want to run the example notebook:
+The paper-style simulation demo is:
 
 ```bash
 pip install -e ".[examples]"
-```
-
-For development tools:
-
-```bash
-pip install -e ".[dev]"
-```
-
-## Quick Start
-
-The fastest sanity check is a small paper-style simulation:
-
-```python
-from BiHPR import run_single_simulation
-
-run = run_single_simulation(
-    n=30,
-    p=60,
-    p0=15,
-    lambda_grid=(2000.0, 1000.0),
-    lambda3_grid=(1000.0, 500.0),
-    niter=50,
-    pilot_niter=50,
-    tol=1e-3,
-    cluster_tol=1e-3,
-)
-
-print(run["best_record"])
-print(run["metrics"])
-```
-
-For larger experiments, increase `niter`, `pilot_niter`, and the tuning grids.
-
-## Main API
-
-```python
-from BiHPR import (
-    fit_bihpr_mcp_large,
-    fit_bihpr_path,
-    generate_paper_simulation,
-    prepare_bihpr_workspace,
-    run_single_simulation,
-)
-```
-
-### `fit_bihpr_mcp_large`
-
-Fits one fixed penalty setting:
-
-```python
-result = fit_bihpr_mcp_large(
-    Y,
-    X,
-    lambda_col=2000.0,
-    lambda3=500.0,
-    niter=200,
-    tol=1e-4,
-)
-```
-
-Important returned fields:
-
-- `beta`: estimated `n x p` coefficient matrix;
-- `row_labels`: estimated sample subgroup labels;
-- `col_labels`: estimated feature cluster labels;
-- `active_features`: Boolean active-feature mask;
-- `rss`: residual sum of squares;
-- `objective`: objective value at the final iterate;
-- `iterations`, `converged`, `final_change`, `primal_residual`: convergence
-  diagnostics;
-- `timings`: graph precomputation and solver runtime;
-- `memory_bytes`: estimated memory footprint of the current implementation.
-
-### `fit_bihpr_path`
-
-Runs a two-dimensional BIC grid with warm starts:
-
-```python
-path = fit_bihpr_path(
-    Y,
-    X,
-    lambda_grid=(4000.0, 2000.0, 1000.0),
-    lambda3_grid=(1000.0, 500.0, 100.0),
-    niter=200,
-    pilot_niter=200,
-    tol=1e-4,
-)
-
-best = path["best"]
-best_record = path["best_record"]
-records = path["records"]
-```
-
-Returned objects:
-
-- `best`: full solver result at the selected BIC minimum;
-- `best_record`: compact row describing the selected tuning point;
-- `records`: list of all BIC grid rows;
-- `results`: dictionary mapping `(lambda_col, lambda3)` to full solver results;
-- `pilots`: pilot-path results with `lambda3=0`;
-- `workspace`: reusable graph and Sylvester precomputation object.
-
-### `generate_paper_simulation`
-
-Creates a balanced simulation design with three row clusters, three active
-feature clusters, and one zero feature cluster:
-
-```python
-truth = generate_paper_simulation(n=150, p=400, p0=30, sigma=0.5, seed=2026)
-
-Y = truth["Y"]
-X = truth["X"]
-beta_true = truth["beta_true"]
-```
-
-## Full Example
-
-```python
-import pandas as pd
-from sklearn.metrics import adjusted_rand_score
-
-from BiHPR import generate_paper_simulation, fit_bihpr_path
-
-truth = generate_paper_simulation(n=30, p=60, p0=15, sigma=0.5, seed=2026)
-
-path = fit_bihpr_path(
-    truth["Y"],
-    truth["X"],
-    lambda_grid=(4000.0, 2000.0, 1000.0),
-    lambda3_grid=(1000.0, 500.0, 100.0),
-    niter=100,
-    pilot_niter=100,
-    tol=1e-3,
-    cluster_tol=1e-3,
-)
-
-best = path["best"]
-record_table = pd.DataFrame(path["records"])
-
-row_ari = adjusted_rand_score(truth["row_labels"], best["row_labels"])
-active_mask = truth["active_features"]
-col_ari = adjusted_rand_score(
-    truth["col_labels"][active_mask],
-    best["col_labels"][active_mask],
-)
-
-print(path["best_record"])
-print({"row_ari": row_ari, "active_col_ari": col_ari})
-print(record_table.sort_values("bic").head())
-```
-
-## Command-Line Gaussian Grid
-
-After installation, the Gaussian grid experiment is available as:
-
-```bash
-bihpr-gaussian-grid --n-jobs 3
-```
-
-Useful options:
-
-```bash
-# Run a coarse pilot grid
-bihpr-gaussian-grid --grid pilot --p-values 100 300 --repeats 5 --n-jobs 2
-
-# Run only selected seeds
-bihpr-gaussian-grid --seeds 0 1 2 --p-values 100 --n-jobs 3
-
-# Rerun only previously failed seeds
-bihpr-gaussian-grid --failed-only --n-jobs 3
-
-# Save outputs to a custom directory
-bihpr-gaussian-grid --result-dir my_results --n-jobs 3
-```
-
-By default, outputs are written to `Gaussian_noise05_results/` in the current
-working directory. The script stores per-seed candidate tables and final summary
-tables for the BIC and target-df selection rules.
-
-## Notebook Tutorial
-
-Open the worked example notebook:
-
-```bash
 jupyter notebook examples/BiHPR_usage_demo.ipynb
 ```
 
-The notebook demonstrates:
+The notebook runs the complete warm-started BIC tuning path for one fixed simulation setting. It reads its initialization from `examples/data/paper_simulation/initialization.csv` and saves the tuning table and summary under `outputs/BiHPR_usage_demo_n150_p400_seed2026/`.
 
-1. importing the package;
-2. generating a small simulation dataset;
-3. fitting a single penalty setting;
-4. running a BIC tuning path;
-5. computing recovery metrics;
-6. inspecting the tuning table.
+## TCGA lung real-data analysis
 
-## TCGA Lung Real-Data Analysis
-
-The repository includes the analysis notebook and the two input files required
-to reproduce the TCGA lung analysis:
-
-- `examples/TCGA_lung_real_data.ipynb`;
-- `examples/data/tcga_lung/LUNG_data.csv` (RNA-seq measurements, clinical
-  outcome, and cancer-type labels);
-- `examples/data/tcga_lung/lung_coef.xlsx` (candidate-gene table).
-
-Install the real-data dependencies and start Jupyter from the repository root:
+The real-data analysis is:
 
 ```bash
 pip install -e ".[realdata]"
 jupyter notebook examples/TCGA_lung_real_data.ipynb
 ```
 
-The notebook performs log normalization, variance-based feature selection,
-local fused-lasso initialization, BiHPR fitting, cluster-composition analysis,
-and coefficient heatmap generation. It writes new artifacts under
-`outputs/tcga_lung_real_data/`, which is excluded from version control. The
-default configuration is computationally demanding; reduce `P_DIM` and `niter`
-for a quick smoke test.
+Start Jupyter from the repository root. The notebook reads `LUNG_data.csv` and `lung_coef.xlsx` from `examples/data/tcga_lung/`, fits BiHPR to the selected genes, and saves the final results under `outputs/tcga_lung_real_data/`.
+

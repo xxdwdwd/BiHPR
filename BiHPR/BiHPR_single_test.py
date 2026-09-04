@@ -1,4 +1,4 @@
-"""BIC tuning paths and paper-style simulations for the BiHPR solver.
+"""BIC tuning paths and paper-style simulation utilities for the BiHPR solver.
 
 The numerical ADMM solver lives in :mod:`BiHPR.BiHPR_MCP_large`. This module
 adds the experiment-level workflow used by the Gaussian simulations:
@@ -6,16 +6,13 @@ adds the experiment-level workflow used by the Gaussian simulations:
 1. run a pilot path with ``lambda3=0``;
 2. compute adaptive feature-selection weights from the pilot solutions;
 3. evaluate the two-dimensional ``(lambda_col, lambda3)`` BIC grid;
-4. generate and evaluate one balanced paper-style simulation.
+4. generate a balanced paper-style simulation.
 """
 
 from __future__ import annotations
 
 import math
-import time
-
 import numpy as np
-from sklearn.metrics import adjusted_rand_score
 
 from BiHPR.Cluster import (
     compute_difference_matrix,
@@ -155,9 +152,9 @@ def fit_bihpr_path(
     lambda3_grid = sorted(set(map(float, lambda3_grid)), reverse=True)
     pilot_niter = niter if pilot_niter is None else pilot_niter
 
-    # In the Gaussian simulations, X is independent of the true latent groups.
-    # When beta_init is supplied, use the noisy truth-based initializer to build
-    # the fixed KNN graph, matching the historical regression implementation.
+    # In the Gaussian simulations, X is independent of the latent groups.
+    # When beta_init is supplied, construct the fixed KNN graph from that
+    # supplied initial coefficient matrix.
     graph_data = X if beta_init is None else beta_init
     work = prepare_bihpr_workspace(
         Y, X,
@@ -281,96 +278,3 @@ def generate_paper_simulation(n=150, p=400, p0=30, sigma=0.5, seed=2026):
         "active_features": np.arange(p) < p0,
     }
 
-
-def run_single_simulation(
-    *,
-    n=150,
-    p=400,
-    p0=30,
-    lambda_grid=STRUCTURE_LAMBDA_GRID,
-    lambda3_grid=SPARSITY_LAMBDA_GRID,
-    seed=2026,
-    init_noise_sd=1.5,
-    niter=1500,
-    pilot_niter=1500,
-    tol=5e-4,
-    cluster_tol=5e-4,
-    output=0,
-):
-    """Run one paper-style simulation and return full recovery diagnostics."""
-
-    truth = generate_paper_simulation(n=n, p=p, p0=p0, seed=seed)
-    # Nonconvex MCP is initialization-sensitive. The simulation protocol uses
-    # the true beta plus Gaussian noise:
-    #
-    #     beta^(0) = beta* + N(0, init_noise_sd^2)
-    #
-    # Use an independent random stream so the generated X and Y stay unchanged.
-    init_rng = np.random.default_rng(seed + 10000)
-    beta_init = truth["beta_true"] + init_rng.normal(
-        0.0, init_noise_sd, size=truth["beta_true"].shape
-    )
-    start = time.perf_counter()
-    path = fit_bihpr_path(
-        truth["Y"], truth["X"], lambda_grid, lambda3_grid,
-        niter=niter, pilot_niter=pilot_niter,
-        tol=tol, cluster_tol=cluster_tol, output=output,
-        beta_init=beta_init,
-    )
-    best = path["best"]
-    true_active = truth["active_features"]
-    estimated_active = best["active_features"]
-    prediction = np.einsum("ij,ij->i", truth["X"], best["beta"])
-    metrics = {
-        "row_ari": adjusted_rand_score(truth["row_labels"], best["row_labels"]),
-        "col_ari_active": adjusted_rand_score(
-            truth["col_labels"][true_active], best["col_labels"][true_active]
-        ),
-        "bias": np.mean(np.abs(best["beta"] - truth["beta_true"])),
-        "rmse": np.sqrt(np.mean((truth["Y"] - prediction) ** 2)),
-        "fpr": np.mean(estimated_active[~true_active]),
-        "fnr": np.mean(~estimated_active[true_active]),
-        "n_active": int(estimated_active.sum()),
-    }
-    recovery_records = []
-    for record in path["records"]:
-        result = path["results"][(record["lambda"], record["lambda3"])]
-        active = result["active_features"]
-        recovery_records.append({
-            **record,
-            "row_ari": adjusted_rand_score(
-                truth["row_labels"], result["row_labels"]
-            ),
-            "col_ari_active": adjusted_rand_score(
-                truth["col_labels"][true_active],
-                result["col_labels"][true_active],
-            ),
-            "fpr": np.mean(active[~true_active]),
-            "fnr": np.mean(~active[true_active]),
-            "k_col_total": len(np.unique(result["col_labels"])),
-        })
-    return {
-        "truth": truth,
-        "beta_init": beta_init,
-        "path": path,
-        "best": best,
-        "best_record": path["best_record"],
-        "metrics": metrics,
-        "recovery_records": recovery_records,
-        "elapsed_seconds": time.perf_counter() - start,
-        "memory_reduction": best["legacy_memory_bytes"] / best["memory_bytes"],
-    }
-
-
-if __name__ == "__main__":
-    # By default, verify the known recovery point instead of running the full
-    # wide grid. Remove the explicit grids below to search the full range.
-    run = run_single_simulation(
-        lambda_grid=(200000.0,),
-        lambda3_grid=(500000.0,),
-    )
-    print("best:", run["best_record"])
-    print("metrics:", run["metrics"])
-    print("recovery:", run["recovery_records"][0])
-    print(f"time: {run['elapsed_seconds']:.2f}s")
-    print(f"memory reduction: {run['memory_reduction']:.1f}x")

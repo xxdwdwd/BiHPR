@@ -17,7 +17,6 @@ from BiHPR.BiHPR_MCP_large import (
     fit_bihpr_mcp_large,
     fit_bihpr_path,
     prepare_bihpr_workspace,
-    run_single_simulation,
     weighted_mcp_prox,
 )
 from BiHPR.BiHPR_single_test import (
@@ -39,6 +38,5 @@ __all__ = [
     "generate_paper_simulation",
     "label_beta_by_threshold",
     "prepare_bihpr_workspace",
-    "run_single_simulation",
     "weighted_mcp_prox",
 ]
